@@ -13,8 +13,10 @@ import smtplib
 import os
 from dotenv import load_dotenv
 
+import time
 
-def main():
+
+def price_drop_alert():
     load_dotenv()
 
     USER_AGENT = os.getenv('USER_AGENT')
@@ -25,7 +27,11 @@ def main():
         'User-Agent': USER_AGENT
     }
 
-    page = requests.get(URL, headers=headers)
+    try:
+        page = requests.get(URL, headers=headers, timeout=50)
+        page.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
     print(f'HTTP STATUS CODE: {page.status_code}')
     soup = BeautifulSoup(page.content, 'html.parser')
 
@@ -40,17 +46,47 @@ def main():
     price_value = Decimal(sub(r'[^\d.]', '', price_string))
 
     if price_value < MAXIMUM_ACCEPTABLE_PRICE:
-        send_mail(price_value, URL)
+        subj = 'Price drop alert'
+        body = f'Price dropped to * ${price_value} * at:\n\n{URL}'
+        send_mail(subj, body)
 
 
-def send_mail(price, url):
+def stock_alert():
+    load_dotenv()
+
+    USER_AGENT = os.getenv('USER_AGENT')
+    URL = 'https://www.lenovo.com/ca/en/laptops/ideapad/ideapad-500-series/IdeaPad-5-14ARE05/p/88IPS501392'
+
+    headers = {
+        'User-Agent': USER_AGENT
+    }
+
+    try:
+        page = requests.get(URL, headers=headers, timeout=50)
+        page.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        raise SystemExit(e)
+    soup = BeautifulSoup(page.content, 'html.parser')
+
+    button = soup.find(
+        id='addWishlistForm81YM0002US').find_previous_sibling().find('button')
+
+    if 'out-of-stock' in button['class']:
+        print(f'OUT OF STOCK AT: {time.ctime()}')
+    else:
+        subj = 'Stock alert'
+        body = f'In Stock at:\n\n{URL}'
+        send_mail(subj, body)
+
+
+def send_mail(subj, body):
     load_dotenv()
 
     USERNAME = os.getenv('USERNAME')
     PASSWORD = os.getenv('PASSWORD')
     SEND_TO = os.getenv('SEND_TO')
-    SUBJECT = 'Price drop alert'
-    BODY = f'Price dropped to * ${price} * at:\n\n{url}'
+    SUBJECT = subj
+    BODY = body
 
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.ehlo()
@@ -69,4 +105,4 @@ def send_mail(price, url):
 
 
 if __name__ == '__main__':
-    main()
+    stock_alert()
