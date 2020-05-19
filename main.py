@@ -68,8 +68,12 @@ def stock_alert():
         raise SystemExit(e)
     soup = BeautifulSoup(page.content, 'html.parser')
 
-    button = soup.find(
-        id='addWishlistForm81YM0002US').find_previous_sibling().find('button')
+    soup_item = soup.find(id='addWishlistForm81YM0002US')
+    if soup_item is None:
+        print('Product Not Found (May be Out of Stock)')
+        return
+    else:
+        button = soup_item.find_previous_sibling().find('button')
 
     if 'out-of-stock' in button['class']:
         print(f'OUT OF STOCK AT: {time.ctime()}')
